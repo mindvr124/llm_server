@@ -20,6 +20,7 @@ import asyncio
 
 load_dotenv()
 app = FastAPI()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 def get_streaming_llm(model, temperature, callback):
     api_key = os.getenv("OPENAI_API_KEY")
@@ -29,7 +30,7 @@ def get_streaming_llm(model, temperature, callback):
         temperature=temperature,
         streaming=True,
         callbacks=[callback],
-        openai_api_key=api_key  # ✅ 이 줄이 꼭 있어야 함
+        openai_api_key=OPENAI_API_KEY
     )
 
 # 히스토리 저장 변수 (서버 실행 중 유지됨)
@@ -107,3 +108,9 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_json({"error": str(e)})
             print("❌ 에러 발생:", e)
             break
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))  # Render는 PORT 환경변수를 자동으로 줌
+    uvicorn.run("llm_server:app", host="0.0.0.0", port=port)

@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: llm-websocket-server
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python llm_server.py
+    plan: free
