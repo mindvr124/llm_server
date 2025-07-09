@@ -58,7 +58,11 @@ async def websocket_endpoint(websocket: WebSocket):
             user_input = data.get("user_input")
 
             if not system or not user_input:
-                await websocket.send_json({"error": "template and user_input are required"})
+                err = json.dumps(
+                    {"error": "system과 user_input 필드는 필수입니다."},
+                    ensure_ascii=False
+                )
+                await websocket.send_bytes(err.encode("utf-8"))
                 continue
 
             history = "\n".join(
@@ -91,23 +95,30 @@ async def websocket_endpoint(websocket: WebSocket):
                 "user_input": user_input
             }))
 
+             # 스트리밍 응답 전송 (chunk 단위)
             async for chunk in callback.aiter():
-                await websocket.send_json({"chunk": chunk})
+                chunk_bytes = json.dumps({"chunk": chunk}, ensure_ascii=False).encode("utf-8")
+                await websocket.send_bytes(chunk_bytes)
 
+            # 최종 결과 처리
             response_text = await response
             chat_history.append({
                 "user": user_input,
                 "response": response_text.content,
             })
-
-            await websocket.send_json({"done": True, "content": response_text.content})
-            print(f"📨 상담사: {response_text.content}")
+    
+            done_msg = json.dumps(
+                {"done": True, "content": response_text.content},
+                ensure_ascii=False
+            )
+            await websocket.send_bytes(done_msg.encode("utf-8"))
+            print(f"📨 상담사 응답: {response_text.content}")
 
         except Exception as e:
-            await websocket.send_json({"error": str(e)})
-            print("❌ 에러 발생:", e)
+            error_msg = json.dumps({"error": str(e)}, ensure_ascii=False)
+            await websocket.send_bytes(error_msg.encode("utf-8"))
+            print("❌ 예외 발생:", e)
             break
-
 
 
 if __name__ == "__main__":
