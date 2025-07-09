@@ -17,6 +17,7 @@ from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from dotenv import load_dotenv
 import os
 import asyncio
+import json
 
 load_dotenv()
 app = FastAPI()
@@ -36,6 +37,8 @@ def get_streaming_llm(model, temperature, callback):
 # 히스토리 저장 변수 (서버 실행 중 유지됨)
 chat_history = []
 
+import json
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -45,18 +48,19 @@ async def websocket_endpoint(websocket: WebSocket):
     while True:
         try:
             print("📩 메시지 대기 중...")
-            data = await websocket.receive_json()
+            data_bytes = await websocket.receive_bytes()
+            text = data_bytes.decode("utf-8")
+            data = json.loads(text)
 
             model = data.get("model")
             temperature = data.get("temperature")
             system = data.get("system")
             user_input = data.get("user_input")
-            
 
             if not system or not user_input:
                 await websocket.send_json({"error": "template and user_input are required"})
                 continue
-            
+
             history = "\n".join(
                 [f"사용자: {item['user']}\n상담사: {item['response']}" for item in chat_history]
             )
@@ -71,7 +75,6 @@ async def websocket_endpoint(websocket: WebSocket):
             {user_input}
             """
 
-            # 프롬프트 템플릿
             prompt = PromptTemplate(
                 input_variables=["system", "history", "user_input"],
                 template=template
@@ -80,34 +83,31 @@ async def websocket_endpoint(websocket: WebSocket):
             callback = AsyncIteratorCallbackHandler()
             llm = get_streaming_llm(model, temperature, callback)
 
-            # 최신 LangChain 구조: RunnableSequence
             chain = prompt | llm
 
-            # Streaming 실행
             response = asyncio.create_task(chain.ainvoke({
                 "system": system,
                 "history": history,
                 "user_input": user_input
             }))
 
-            # 스트리밍 응답 전송
             async for chunk in callback.aiter():
                 await websocket.send_json({"chunk": chunk})
 
-            # 결과 대기
             response_text = await response
-            # 응답을 메모리에 저장
             chat_history.append({
                 "user": user_input,
                 "response": response_text.content,
             })
 
-            await websocket.send_json({"done": True, "content":response_text.content})
+            await websocket.send_json({"done": True, "content": response_text.content})
             print(f"📨 상담사: {response_text.content}")
+
         except Exception as e:
             await websocket.send_json({"error": str(e)})
             print("❌ 에러 발생:", e)
             break
+
 
 
 if __name__ == "__main__":
