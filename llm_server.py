@@ -26,7 +26,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 def get_streaming_llm(model, temperature, callback):
     api_key = os.getenv("OPENAI_API_KEY")
-    print("🔑 API 키:", api_key)
+    #print("🔑 API 키:", api_key)
     return ChatOpenAI(
         model=model,
         temperature=temperature,
@@ -58,7 +58,7 @@ async def websocket_endpoint(websocket: WebSocket):
             system = data.get("system")
             user_input = data.get("user_input")
 
-            print(f"모델: {model}, 창의성: {temperature}, 시스템: {system}, 사용자 입력: {user_input}")
+            # print(f"모델: {model}, 창의성: {temperature}, 시스템: {system}, 사용자 입력: {user_input}")
 
             if not system or not user_input:
                 err = json.dumps(
