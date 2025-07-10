@@ -15,6 +15,7 @@ from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from dotenv import load_dotenv
+from starlette.websockets import WebSocketDisconnect
 import os
 import asyncio
 import json
@@ -116,11 +117,20 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_bytes(done_msg.encode("utf-8"))
             print(f"📨 상담사 응답: {response_text.content}")
 
-        except Exception as e:
-            error_msg = json.dumps({"error": str(e)}, ensure_ascii=False)
-            await websocket.send_bytes(error_msg.encode("utf-8"))
-            print("❌ 예외 발생:", e)
+        except WebSocketDisconnect:
+            print("🔌 클라이언트가 연결을 종료했습니다.")
             break
+        
+        except Exception as e:
+            print("❌ 처리 중 에러:", e)
+            try:
+                error_msg = json.dumps({"error": str(e)}, ensure_ascii=False)
+                await websocket.send_bytes(error_msg.encode("utf-8"))
+            except Exception:
+                print("❌ 예외 발생:", e)
+            break
+
+       
 
 
 if __name__ == "__main__":
