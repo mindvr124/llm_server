@@ -48,14 +48,16 @@ async def websocket_endpoint(websocket: WebSocket):
     while True:
         try:
             print("📩 메시지 대기 중...")
-            data_bytes = await websocket.receive_bytes()
-            text = data_bytes.decode("utf-8")
+            text = await websocket.receive_text()
+            #text = data_bytes.decode("utf-8")
             data = json.loads(text)
 
             model = data.get("model")
             temperature = data.get("temperature")
             system = data.get("system")
             user_input = data.get("user_input")
+
+            print(f"모델: {model}, 창의성: {temperature}, 시스템: {system}, 사용자 입력: {user_input}")
 
             if not system or not user_input:
                 err = json.dumps(
